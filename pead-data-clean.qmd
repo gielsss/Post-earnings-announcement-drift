@@ -4,8 +4,69 @@ format: html
 editor: visual
 ---
 
+#Packages :
+```{r}
+#| label: setup
+#| message: false
+library(tidyverse)
+library(lubridate)
+library(here)
+library(frenchdata)
+library(tidyquant)
+library(fixest)
+```
+
 ## PEAD Announcement Drift
 
+
+#Running a small version of the project. 5 tickers over 4 periods
+
+#1. Create an R vector of all 5 firms to test
 ```{r}
-y = 5 + 8
+pilot_tickers <- c("AAPL", "JPM", "WMT", "XOM", "BRK-B") #List of the stocks to run the small test on
+n_quarters <- 4 #4 quarters
+
 ```
+
+#2. create the raw data folder for the 5 firms
+```{r}
+dir.create(here("data", "raw"), recursive = TRUE), showWarnings = FALSE)
+
+#Creates a folder data/raw/ in our project
+#"recursive = TRUE" creates data/ if it doesn't exist yyet
+#"showWarnings = FALSE" nothing happens if the folder already exists
+
+ff_path <- here("data", "raw", "ff3_daily.rds")
+#Stores the full file path where the data is saved
+
+if (!file.exists(ff_path)) {
+#Checks whether the ff_path file exists and executes all within the brackets if YES
+  
+  ff_raw <- download_french_data("Fama/French 3 Factors [daily]") #Downloads the daily FF3 file from Ken French's website
+  saveRDS(ff_raw, ff_path)#Saves the dowload to the data/raw/ff3_daily.rds -> prevents redownloads everytime the file runs
+}
+
+ff <- ff_raw$subsets$data[[1]] |> #Gets the downloaded table out of the download
+  #The result goes into a pipe chain and saved as ff
+  rename(mkt_rf = `Mkt-RF`, smb = SMB, hml = HML, rf = RF) |>
+  #Renames the columns of imported dataframe
+  
+  mutate(date = ymd(date), #ymd() turns the data column into a real R date soR can compare and subtract
+         
+         
+#Ken French reports returns in percent so divide all columns by 100 to work with decimals
+
+    across(c(mkt_rf, smb, htl, rf), ~ .x / 100)) |>
+  
+  
+  
+  
+
+
+  
+
+
+
+
+
+
