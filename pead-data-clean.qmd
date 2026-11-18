@@ -21,42 +21,89 @@ library(fixest)
 
 #Running a small version of the project. 5 tickers over 4 periods
 
-#1. Create an R vector of all 5 firms to test
+# Start: Create an R vector of all 5 firms to test
 ```{r}
 pilot_tickers <- c("AAPL", "JPM", "WMT", "XOM", "BRK-B") #List of the stocks to run the small test on
 n_quarters <- 4 #4 quarters
-
 ```
 
-#2. create the raw data folder for the 5 firms
+#1. Configuration Chunk
+# Create the raw data folder for the 5 firms
 ```{r}
-dir.create(here("data", "raw"), recursive = TRUE), showWarnings = FALSE)
+#| label: factors
+dir.create(here("data", "raw"), recursive = TRUE, showWarnings = FALSE)
 
 #Creates a folder data/raw/ in our project
-#"recursive = TRUE" creates data/ if it doesn't exist yyet
+#"recursive = TRUE" creates data/ if it doesn't exist yet
 #"showWarnings = FALSE" nothing happens if the folder already exists
 
 ff_path <- here("data", "raw", "ff3_daily.rds")
 #Stores the full file path where the data is saved
 
 if (!file.exists(ff_path)) {
-#Checks whether the ff_path file exists and executes all within the brackets if YES
+#Checks whether the ff_path file exists and executes everything within the brackets only if it does NOT exist yet
   
-  ff_raw <- download_french_data("Fama/French 3 Factors [daily]") #Downloads the daily FF3 file from Ken French's website
-  saveRDS(ff_raw, ff_path)#Saves the dowload to the data/raw/ff3_daily.rds -> prevents redownloads everytime the file runs
+  ff_raw <- download_french_data("Fama/French 3 Factors [Daily]") #Downloads the daily FF3 file from Ken French's website
+  saveRDS(ff_raw, ff_path) #Saves the download to data/raw/ff3_daily.rds -> prevents redownloading every time the file runs
 }
 
-ff <- ff_raw$subsets$data[[1]] |> #Gets the downloaded table out of the download
-  #The result goes into a pipe chain and saved as ff
-  rename(mkt_rf = `Mkt-RF`, smb = SMB, hml = HML, rf = RF) |>
-  #Renames the columns of imported dataframe
-  
-  mutate(date = ymd(date), #ymd() turns the data column into a real R date soR can compare and subtract
-         
-         
-#Ken French reports returns in percent so divide all columns by 100 to work with decimals
+ff_raw <- readRDS(ff_path) #Reads the raw data from the path we just created
 
-    across(c(mkt_rf, smb, htl, rf), ~ .x / 100)) |>
+ff <- ff_raw$subsets$data[[1]] |> #Gets the downloaded table out of the download
+  #The result goes into a pipe chain and is saved as ff
+  rename(mkt_rf = `Mkt-RF`, smb = SMB, hml = HML, rf = RF) |>
+  #Renames the columns of the imported dataframe
+  
+  mutate(date = ymd(date), #ymd() turns the date column into a real R date so R can compare and subtract
+         across(c(mkt_rf, smb, hml, rf), ~ .x / 100)) |>
+  #Ken French reports returns in percent so divide all columns by 100 to work with decimals
+  
+  arrange(date) |> #Sorts the rows from oldest to newest
+  mutate(day_idx = row_number()) #Makes every row a trading day. day_idx is a trading day counter. The dataset only contains days on which the market is open.
+
+max(ff$date) #Prints the latest date in the date column
+summary(ff$mkt_rf) #Prints the min, max etc. of the market excess return to check that the divide-by-100 worked
+
+
+```
+
+```
+# Sample Dates Chunk
+# Clean the ff dataset to fit the test sample period
+```{r}
+#Save last date of the sample
+ff_last_date <- max(ff$date)
+
+#Creates safety buffer for the sample end
+sample_end <- ff$date[nrow(ff) - 35] 
+
+#Create the sample start. -12 because roughly 4 quarters
+sample_start <- sample_end - months(if (pilot) 12 else 36)
+
+#Creates the sample start in a way that accounts for last valid day if date doesn't exist in target month
+sample_start <- sample_end %m-% months(if (pilot) 12 else 36)
+
+#Result is the row where th first trading day is on or after sample start
+first_idx <- which(ff$date >= sample_start)[1]
+
+#Price starts 160 days before the first event (first_idx). Estimation window starts at t = -150 which makes this cover it with 10 days to spare
+price_start <- ff$date[first_idx - 160]
+
+c(price_start = price_start, sample_start = sample_start,
+  sample_end = sample_end, ff_last = ff_last_date)
+
+```
+  
+#
+
+
+
+
+
+  
+  
+  
+  
   
   
   
